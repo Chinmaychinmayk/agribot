@@ -8,7 +8,7 @@ detecting and counting plants — using **ROS 2 Humble + Gazebo + Nav2 + RTAB-Ma
 Lane perception is **purely geometric (depth-based), with no colour/HSV
 thresholding** anywhere (per the brief, colour thresholding = disqualification).
 
-See **[WRITEUP.md](WRITEUP.md)** for the full technical explanation (perception,
+See **[WRITEUP.md](farm_nav_ws/WRITEUP.md)** for the full technical explanation (perception,
 navigation, hardcoded-vs-learned, evaluation).
 
 ---
@@ -100,13 +100,15 @@ ros2 launch farm_bringup bringup.launch.py
 ## Package layout
 
 ```
-farm_nav_ws/
-├── Dockerfile, run.sh, record_video.sh
-├── README.md, WRITEUP.md
-└── src/
-    ├── farm_description/   # Husky + RealSense xacro, Gazebo plugins, RViz, RSP launch
-    ├── farm_perception/    # depth-geometric perception, plant counting, mission, recorders
-    └── farm_bringup/       # world, Nav2 + RTAB-Map config, launch files
+agribot/
+├── README.md
+└── farm_nav_ws/
+    ├── Dockerfile, run.sh, record_video.sh
+    ├── WRITEUP.md
+    └── src/
+        ├── farm_description/   # Husky + RealSense xacro, Gazebo plugins, RViz, RSP launch
+        ├── farm_perception/    # depth-geometric perception, plant counting, mission, recorders
+        └── farm_bringup/       # world, Nav2 + RTAB-Map config, launch files
 ```
 
 ---
