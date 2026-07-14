@@ -1,0 +1,160 @@
+<?xml version="1.0"?>
+<!--
+  Self-contained Husky A200 + Intel RealSense D435 description.
+
+  Dimensions follow the Clearpath Husky A200 user manual (also quoted in the
+  provided world file): length 0.99 m, width 0.67 m, height 0.39 m,
+  track 0.555 m, wheel radius 0.1651 m.
+
+  The robot is a 4-wheel skid-steer platform. We approximate it with a
+  gazebo_ros_diff_drive plugin configured with two wheel pairs (front + rear),
+  which is the standard way to drive a Husky in Gazebo Classic.
+
+  The ONLY exteroceptive sensor is a single RealSense D435 RGB-D camera,
+  mounted at the front of the chassis looking forward and tilted slightly
+  down so it sees the lane surface a couple of metres ahead (matching the
+  front/low placement shown in the task brief). Wheel odometry from the
+  diff-drive plugin is proprioceptive and is NOT a localization sensor, so it
+  is permitted by the brief.
+-->
+<robot name="husky" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- ============================ PARAMETERS ============================ -->
+  <xacro:property name="base_length" value="0.99"/>
+  <xacro:property name="base_width"  value="0.67"/>
+  <xacro:property name="base_height" value="0.25"/>   <!-- chassis box only -->
+  <xacro:property name="base_mass"   value="33.0"/>
+
+  <xacro:property name="wheel_radius" value="0.1651"/>
+  <xacro:property name="wheel_width"  value="0.12"/>
+  <xacro:property name="wheel_mass"   value="2.6"/>
+  <xacro:property name="track"        value="0.555"/>  <!-- centre-to-centre, left/right -->
+  <xacro:property name="wheelbase"    value="0.512"/>  <!-- centre-to-centre, front/rear -->
+
+  <!-- height of chassis bottom above ground so wheels touch the floor -->
+  <xacro:property name="base_z" value="${wheel_radius + 0.03}"/>
+
+  <!-- Camera mount: front face of chassis, low, tilted down ~15 deg -->
+  <xacro:property name="cam_x"     value="${base_length/2 - 0.02}"/>
+  <xacro:property name="cam_z"     value="0.10"/>
+  <xacro:property name="cam_pitch" value="0.26"/>     <!-- ~15 deg downward -->
+
+  <xacro:property name="PI" value="3.14159265359"/>
+
+  <!-- ============================ MACROS ============================ -->
+  <xacro:macro name="box_inertia" params="m x y z">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${m*(y*y+z*z)/12.0}" ixy="0.0" ixz="0.0"
+               iyy="${m*(x*x+z*z)/12.0}" iyz="0.0"
+               izz="${m*(x*x+y*y)/12.0}"/>
+    </inertial>
+  </xacro:macro>
+
+  <xacro:macro name="cyl_inertia" params="m r l">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${m*(3*r*r+l*l)/12.0}" ixy="0.0" ixz="0.0"
+               iyy="${m*(3*r*r+l*l)/12.0}" iyz="0.0"
+               izz="${m*r*r/2.0}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- A single wheel + its continuous joint -->
+  <xacro:macro name="wheel" params="name x y">
+    <link name="${name}_wheel_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${PI/2} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+        <material name="dark"><color rgba="0.1 0.1 0.1 1"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${PI/2} 0 0"/>
+        <geometry><cylinder radius="${wheel_radius}" length="${wheel_width}"/></geometry>
+      </collision>
+      <xacro:cyl_inertia m="${wheel_mass}" r="${wheel_radius}" l="${wheel_width}"/>
+    </link>
+
+    <joint name="${name}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${name}_wheel_link"/>
+      <origin xyz="${x} ${y} ${-base_z + wheel_radius - 0.0}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+
+    <gazebo reference="${name}_wheel_link">
+      <!-- The base is driven kinematically by gazebo_ros_planar_move, so the
+           wheels are passive; make them frictionless so they slide freely and
+           do not fight the commanded body motion. -->
+      <mu1>0.0</mu1>
+      <mu2>0.0</mu2>
+      <kp>1e6</kp>
+      <kd>100.0</kd>
+      <material>Gazebo/DarkGrey</material>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- ============================ BASE ============================ -->
+  <!-- base_footprint: planar projection on the ground, used as the Nav2 base -->
+  <link name="base_footprint"/>
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${base_length} ${base_width} ${base_height}"/></geometry>
+      <material name="husky_yellow"><color rgba="0.85 0.7 0.05 1"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${base_length} ${base_width} ${base_height}"/></geometry>
+    </collision>
+    <xacro:box_inertia m="${base_mass}" x="${base_length}" y="${base_width}" z="${base_height}"/>
+  </link>
+
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 ${base_z}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- four wheels -->
+  <xacro:wheel name="front_left"  x="${ wheelbase/2}" y="${ track/2}"/>
+  <xacro:wheel name="front_right" x="${ wheelbase/2}" y="${-track/2}"/>
+  <xacro:wheel name="rear_left"   x="${-wheelbase/2}" y="${ track/2}"/>
+  <xacro:wheel name="rear_right"  x="${-wheelbase/2}" y="${-track/2}"/>
+
+  <!-- ============================ CAMERA ============================ -->
+  <!-- RealSense body -->
+  <link name="camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.025 0.090 0.025"/></geometry>
+      <material name="cam_grey"><color rgba="0.2 0.2 0.2 1"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="0.025 0.090 0.025"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.072"/>
+      <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+    </inertial>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="${cam_x} 0 ${cam_z}" rpy="0 ${cam_pitch} 0"/>
+  </joint>
+
+  <!-- Optical frame: REP-103 optical convention (z forward, x right, y down) -->
+  <link name="camera_depth_optical_frame"/>
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_depth_optical_frame"/>
+    <origin xyz="0 0 0" rpy="${-PI/2} 0 ${-PI/2}"/>
+  </joint>
+
+  <!-- ============================ GAZEBO PLUGINS ============================ -->
+  <xacro:include filename="$(find farm_description)/urdf/husky.gazebo.xacro"/>
+
+</robot>

@@ -1,0 +1,7 @@
+install/
+build/
+log/
+output/*
+!output/.gitkeep
+**/__pycache__/
+*.pyc

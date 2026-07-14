@@ -1,0 +1,5 @@
+output/
+install/
+build/
+log/
+**/__pycache__/

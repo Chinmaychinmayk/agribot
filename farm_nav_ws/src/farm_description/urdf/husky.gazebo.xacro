@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+<!--
+  Gazebo Classic plugins for the Husky:
+    1. gazebo_ros_diff_drive  - skid-steer drive (two wheel pairs) + wheel
+       odometry published on /odom with the odom->base_footprint TF.
+    2. gazebo_ros_camera (depth sensor) - the single RealSense D435, exposing
+       an RGB stream, a depth stream, camera intrinsics (camera_info) and an
+       organised point cloud, all under the /camera namespace.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <gazebo reference="base_link">
+    <material>Gazebo/Yellow</material>
+  </gazebo>
+
+  <!-- ============================ DRIVE ============================ -->
+  <!--
+    The Husky is a 4-wheel skid-steer base. Gazebo Classic's diff_drive plugin
+    with two wheel pairs models forward motion but produces almost no yaw for
+    this geometry (4-wheel lateral scrub), so the base could not turn. We drive
+    the base with gazebo_ros_planar_move, which applies the commanded body twist
+    directly and publishes wheel-odometry-equivalent odom + the odom->base TF.
+    Nav2's Regulated Pure Pursuit only ever commands forward + yaw velocity
+    (never lateral), so the base behaves exactly like a differential drive.
+    The four wheels remain as a visual/collision model of the platform.
+  -->
+  <gazebo>
+    <plugin name="planar_move" filename="libgazebo_ros_planar_move.so">
+      <ros>
+        <remapping>cmd_vel:=cmd_vel</remapping>
+        <remapping>odom:=odom</remapping>
+      </ros>
+      <update_rate>50</update_rate>
+      <publish_rate>50</publish_rate>
+      <odometry_frame>odom</odometry_frame>
+      <robot_base_frame>base_footprint</robot_base_frame>
+      <covariance_x>0.0001</covariance_x>
+      <covariance_y>0.0001</covariance_y>
+      <covariance_yaw>0.01</covariance_yaw>
+    </plugin>
+  </gazebo>
+
+  <!-- ============================ CAMERA ============================ -->
+  <gazebo reference="camera_link">
+    <sensor name="realsense_d435" type="depth">
+      <always_on>true</always_on>
+      <update_rate>15.0</update_rate>
+      <visualize>false</visualize>
+      <camera name="realsense">
+        <!-- D435 colour FOV ~ 69 deg H; depth ~ 87 deg. Use a wide value. -->
+        <horizontal_fov>1.211</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>10.0</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.005</stddev>
+        </noise>
+      </camera>
+
+      <plugin name="realsense_controller" filename="libgazebo_ros_camera.so">
+        <ros>
+          <namespace>/camera</namespace>
+          <!-- expose clean topic names under /camera -->
+          <remapping>realsense_d435/image_raw:=color/image_raw</remapping>
+          <remapping>realsense_d435/camera_info:=color/camera_info</remapping>
+          <remapping>realsense_d435/depth/image_raw:=depth/image_rect_raw</remapping>
+          <remapping>realsense_d435/depth/camera_info:=depth/camera_info</remapping>
+          <remapping>realsense_d435/points:=depth/points</remapping>
+        </ros>
+        <camera_name>realsense_d435</camera_name>
+        <frame_name>camera_depth_optical_frame</frame_name>
+        <hack_baseline>0.07</hack_baseline>
+        <min_depth>0.1</min_depth>
+        <max_depth>10.0</max_depth>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+</robot>

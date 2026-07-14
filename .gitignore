@@ -1,0 +1,8 @@
+.DS_Store
+farm_nav_ws/install/
+farm_nav_ws/build/
+farm_nav_ws/log/
+farm_nav_ws/output/*
+!farm_nav_ws/output/.gitkeep
+**/__pycache__/
+*.pyc
